@@ -26,9 +26,20 @@ _HVAC_MODES = {
 }
 
 _PRESET_MODES = {
+    "Stop": HVAC_MODE_OFF,
     "ClothesDryer": "衣類乾燥",
     "Cleaning": "おそうじ",
     "NanoexCleaning": "おでかけクリーン",
+}
+
+_FAN_MODES = {0: "自動", 2: "1", 3: "2", 4: "3", 5: "4"}
+_SWING_MODES = {
+    "auto": "自動",
+    "to_left": "左",
+    "nearby_left": "ちょっと左",
+    "front": "中央",
+    "nearby_right": "ちょっと右",
+    "to_right": "右",
 }
 
 
@@ -38,6 +49,13 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         [EoliaClimate(hass, config)],
         True,
     )
+
+
+def get_key(dict, val):
+    for key, value in dict.items():
+        if val == value:
+            return key
+    return None
 
 
 class EoliaClimate(ClimateEntity):
@@ -60,6 +78,14 @@ class EoliaClimate(ClimateEntity):
         return self._name
 
     @property
+    def min_temp(self):
+        return 16
+
+    @property
+    def max_temp(self):
+        return 30
+
+    @property
     def hvac_mode(self):
         """Return the state of the sensor."""
         return _HVAC_MODES.get(self._json.get("operation_mode"), HVAC_MODE_OFF)
@@ -80,6 +106,26 @@ class EoliaClimate(ClimateEntity):
         return list(_PRESET_MODES.values())
 
     @property
+    def fan_mode(self):
+        """Return the state of the sensor."""
+        return _FAN_MODES.get(self._json.get("wind_volume"))
+
+    @property
+    def fan_modes(self):
+        """Return the state of the sensor."""
+        return list(_FAN_MODES.values())
+
+    @property
+    def swing_mode(self):
+        """Return the state of the sensor."""
+        return _SWING_MODES.get(self._json.get("wind_direction_horizon"))
+
+    @property
+    def swing_modes(self):
+        """Return the state of the sensor."""
+        return list(_SWING_MODES.values())
+
+    @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         return TEMP_CELSIUS
@@ -90,12 +136,12 @@ class EoliaClimate(ClimateEntity):
 
     @property
     def supported_features(self):
-        # (
-        #     SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE,
-        #     SUPPORT_PRESET_MODE,
-        #     SUPPORT_SWING_MODE,
-        # )
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return (
+            SUPPORT_TARGET_TEMPERATURE
+            | SUPPORT_PRESET_MODE
+            | SUPPORT_FAN_MODE
+            | SUPPORT_SWING_MODE
+        )
 
     @property
     def extra_state_attributes(self):
@@ -109,20 +155,34 @@ class EoliaClimate(ClimateEntity):
 
     def update(self):
         """Update device state."""
-        self._json = self._get(
-            f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status"
-        ).json()
+        self._set_json(
+            self._get(
+                f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status"
+            ).json()
+        )
 
     def set_hvac_mode(self, hvac_mode):
-        self._json["operation_mode"] = _HVAC_MODES.keys()[
-            _HVAC_MODES.values().index(hvac_mode)
-        ]
+        if hvac_mode == HVAC_MODE_OFF:
+            self._json["operation_status"] = False
+        else:
+            self._json["operation_status"] = True
+            self._json["operation_mode"] = get_key(_HVAC_MODES, hvac_mode)
         self._set_put()
 
     def set_preset_mode(self, preset_mode):
-        self._json["operation_mode"] = _PRESET_MODES.keys()[
-            _PRESET_MODES.values().index(preset_mode)
-        ]
+        if preset_mode == HVAC_MODE_OFF:
+            self._json["operation_status"] = False
+        else:
+            self._json["operation_status"] = True
+            self._json["operation_mode"] = get_key(_PRESET_MODES, preset_mode)
+        self._set_put()
+
+    def set_fan_mode(self, fan_mode):
+        self._json["wind_volume"] = get_key(_FAN_MODES, fan_mode)
+        self._set_put()
+
+    def set_swing_mode(self, swing_mode):
+        self._json["wind_direction_horizon"] = get_key(_SWING_MODES, swing_mode)
         self._set_put()
 
     def set_temperature(self, **kwargs):
@@ -130,12 +190,33 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def _set_put(self):
-        self._json = self._put(
-            f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
-            self._json,
-        ).json()
+        self._json["temperature"] = str(self._json["temperature"])
+        self._set_json(
+            self._put(
+                f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
+                self._json,
+            ).json()
+        )
+
+    def _set_json(self, json):
+        keys = set(
+            [
+                "nanoex",
+                "operation_status",
+                "airquality",
+                "wind_volume",
+                "temperature",
+                "operation_mode",
+                "wind_direction",
+                "timer_value",
+                "air_flow",
+                "wind_direction_horizon",
+            ]
+        )
+        self._json = dict(filter(lambda item: item[0] in keys, json.items()))
 
     def _post(self, url, data) -> Response:
+        _LOGGER.debug(json.dumps(data))
         result = self._session.post(url, json.dumps(data), headers=self._headers())
         _LOGGER.debug(result.text)
         if result.status_code == 401:
@@ -152,7 +233,8 @@ class EoliaClimate(ClimateEntity):
         return result
 
     def _put(self, url, data) -> Response:
-        result = self._session.post(url, json.dumps(data), headers=self._headers())
+        _LOGGER.debug(json.dumps(data))
+        result = self._session.put(url, json.dumps(data), headers=self._headers())
         _LOGGER.debug(result.text)
         if result.status_code == 401:
             self._login()
@@ -163,6 +245,8 @@ class EoliaClimate(ClimateEntity):
         return {
             "Accept": "application/json",
             "Content-Type": "application/Json; charset=UTF-8",
+            "User-Agent": "%E3%82%A8%E3%82%AA%E3%83%AA%E3%82%A2/38 CFNetwork/1209 Darwin/20.2.0",
+            "Accept-Language": "ja-jp",
             "x-eolia-date": str.split(
                 datetime.now(tz=timezone(timedelta(hours=+9), "JST")).isoformat(), "."
             )[0],
