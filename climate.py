@@ -1,6 +1,7 @@
 """Sensor for the Open Sky Network."""
 import json
 import requests
+import logging
 from datetime import datetime, timezone, timedelta
 from urllib.parse import quote
 
@@ -8,6 +9,8 @@ from requests.models import Response
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import *
 from homeassistant.const import TEMP_CELSIUS
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "eolia"
 
@@ -21,6 +24,8 @@ _HVAC_MODES = {
     "Dehumidifying": HVAC_MODE_DRY,
     "Nanoe": HVAC_MODE_FAN_ONLY,
 }
+
+_PRESET_MODES = {"Cleaning": "おそうじ", "NanoexCleaning": "おでかけクリーン"}
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -61,6 +66,16 @@ class EoliaClimate(ClimateEntity):
         return list(_HVAC_MODES.values())
 
     @property
+    def preset_mode(self):
+        """Return the state of the sensor."""
+        return _PRESET_MODES.get(self._json.get("operation_mode"))
+
+    @property
+    def preset_modes(self):
+        """Return the state of the sensor."""
+        return list(_PRESET_MODES.values())
+
+    @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         return TEMP_CELSIUS
@@ -76,14 +91,16 @@ class EoliaClimate(ClimateEntity):
         #     SUPPORT_PRESET_MODE,
         #     SUPPORT_SWING_MODE,
         # )
-        return SUPPORT_TARGET_TEMPERATURE
+        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
 
     @property
     def extra_state_attributes(self):
+        outside_temp = self._json.get("outside_temp")
         return {
             "inside_humidity": self._json.get("inside_humidity"),
             "inside_temp": self._json.get("inside_temp"),
-            "outside_temp": self._json.get("outside_temp"),
+            "outside_temp": None if outside_temp == 999 else outside_temp,
+            "_json": self._json,
         }
 
     def update(self):
@@ -96,21 +113,21 @@ class EoliaClimate(ClimateEntity):
         self._json["operation_mode"] = _HVAC_MODES.keys()[
             _HVAC_MODES.values().index(hvac_mode)
         ]
-        self._json = self._put(
-            f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
-            self._json,
-        )
+        self._set_put()
 
     def set_temperature(self, **kwargs):
-        print(kwargs)
+        _LOGGER.debug(kwargs)
+        self._set_put()
+
+    def _set_put(self):
         self._json = self._put(
             f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
             self._json,
-        )
+        ).json()
 
     def _post(self, url, data) -> Response:
         result = self._session.post(url, json.dumps(data), headers=self._headers())
-        print(result.text)
+        _LOGGER.debug(result.text)
         if result.status_code == 401:
             self._login()
             result = self._post(url, data)
@@ -118,7 +135,7 @@ class EoliaClimate(ClimateEntity):
 
     def _get(self, url) -> Response:
         result = self._session.get(url, headers=self._headers())
-        print(result.text)
+        _LOGGER.debug(result.text)
         if result.status_code == 401:
             self._login()
             result = self._get(url)
@@ -126,7 +143,7 @@ class EoliaClimate(ClimateEntity):
 
     def _put(self, url, data) -> Response:
         result = self._session.post(url, json.dumps(data), headers=self._headers())
-        print(result.text)
+        _LOGGER.debug(result.text)
         if result.status_code == 401:
             self._login()
             result = self._put(url, data)
