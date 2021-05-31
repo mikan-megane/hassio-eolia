@@ -25,7 +25,11 @@ _HVAC_MODES = {
     "Nanoe": HVAC_MODE_FAN_ONLY,
 }
 
-_PRESET_MODES = {"Cleaning": "おそうじ", "NanoexCleaning": "おでかけクリーン"}
+_PRESET_MODES = {
+    "ClothesDryer": "衣類乾燥",
+    "Cleaning": "おそうじ",
+    "NanoexCleaning": "おでかけクリーン",
+}
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -58,7 +62,7 @@ class EoliaClimate(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return the state of the sensor."""
-        return _HVAC_MODES.get(self._json.get("operation_mode"))
+        return _HVAC_MODES.get(self._json.get("operation_mode"), HVAC_MODE_OFF)
 
     @property
     def hvac_modes(self):
@@ -68,7 +72,7 @@ class EoliaClimate(ClimateEntity):
     @property
     def preset_mode(self):
         """Return the state of the sensor."""
-        return _PRESET_MODES.get(self._json.get("operation_mode"), HVAC_MODE_OFF)
+        return _PRESET_MODES.get(self._json.get("operation_mode"))
 
     @property
     def preset_modes(self):
