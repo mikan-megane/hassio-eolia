@@ -68,7 +68,7 @@ class EoliaClimate(ClimateEntity):
     @property
     def preset_mode(self):
         """Return the state of the sensor."""
-        return _PRESET_MODES.get(self._json.get("operation_mode"))
+        return _PRESET_MODES.get(self._json.get("operation_mode"), HVAC_MODE_OFF)
 
     @property
     def preset_modes(self):
@@ -112,6 +112,12 @@ class EoliaClimate(ClimateEntity):
     def set_hvac_mode(self, hvac_mode):
         self._json["operation_mode"] = _HVAC_MODES.keys()[
             _HVAC_MODES.values().index(hvac_mode)
+        ]
+        self._set_put()
+
+    def set_preset_mode(self, preset_mode):
+        self._json["operation_mode"] = _PRESET_MODES.keys()[
+            _PRESET_MODES.values().index(preset_mode)
         ]
         self._set_put()
 
