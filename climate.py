@@ -70,6 +70,7 @@ class EoliaClimate(ClimateEntity):
         self._hass = hass
         self._name = DOMAIN
         self._json = {}
+        self._operation_token = None
         self._login()
 
     @property
@@ -194,11 +195,11 @@ class EoliaClimate(ClimateEntity):
         self._set_json(
             self._put(
                 f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
-                self._json,
+                self._get_json(),
             ).json()
         )
 
-    def _set_json(self, json):
+    def _get_json(self):
         keys = set(
             [
                 "nanoex",
@@ -213,7 +214,16 @@ class EoliaClimate(ClimateEntity):
                 "wind_direction_horizon",
             ]
         )
-        self._json = dict(filter(lambda item: item[0] in keys, json.items()))
+        json = dict(filter(lambda item: item[0] in keys, self._json.items()))
+        if self._operation_token:
+            json["operation_token"] = self._operation_token
+            json["appliance_id"] = self._appliance_id
+        return json
+
+    def _set_json(self, json):
+        if "operation_token" in json:
+            self._operation_token = json.get("operation_token")
+        self._json = json
 
     def _post(self, url, data) -> Response:
         _LOGGER.debug(json.dumps(data))
