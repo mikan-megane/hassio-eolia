@@ -26,7 +26,7 @@ _HVAC_MODES = {
 }
 
 _PRESET_MODES = {
-    "Stop": HVAC_MODE_OFF,
+    "Stop": "オフ",
     "ClothesDryer": "衣類乾燥",
     "Cleaning": "おそうじ",
     "NanoexCleaning": "おでかけクリーン",
