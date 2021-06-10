@@ -204,11 +204,13 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def _set_put(self):
-        if self._json["temperature"] < self.min_temp:
-            self._json["temperature"] = self.min_temp
-        if self._json["temperature"] > self.max_temp:
-            self._json["temperature"] = self.max_temp
-        self._json["temperature"] = str(self._json["temperature"])
+        self._json["temperature"] = "0"
+        if self._json["operation_mode"] in ["Heating","Cooling","Auto"]:
+            if self._temp < self.min_temp:
+                self._temp = self.min_temp
+            if self._temp > self.max_temp:
+                self._temp = self.max_temp
+            self._json["temperature"] = str(self._temp)
         self._set_json(
             self._put(
                 f"https://app.rac.apws.panasonic.com/eolia/v2/devices/{self._appliance_id}/status",
