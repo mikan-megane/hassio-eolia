@@ -1,4 +1,4 @@
-"""Sensor for the Open Sky Network."""
+"""Sensor for the Eolia Network."""
 import json
 import requests
 import logging
@@ -27,6 +27,11 @@ _HVAC_MODES = {
 
 _PRESET_MODES = {
     "Stop": "オフ",
+    "Heating": "暖房",
+    "Cooling": "冷房",
+    "Auto": "オート",
+    "Dehumidifying": "ドライ",
+    "Nanoe": "ファンのみ",
     "ClothesDryer": "衣類乾燥",
     "Cleaning": "おそうじ",
     "NanoexCleaning": "おでかけクリーン",
@@ -44,7 +49,7 @@ _SWING_MODES = {
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the Open Sky platform."""
+    """Set up the Eolia platform."""
     add_entities(
         [EoliaClimate(hass, config)],
         True,
@@ -59,14 +64,13 @@ def get_key(dict, val):
 
 
 class EoliaClimate(ClimateEntity):
-    """Open Sky Network Sensor."""
-
     def __init__(self, hass, config):
         """Initialize the sensor."""
         self._session = requests.Session()
         self._id = config.get("id")
         self._pass = config.get("pass")
         self._appliance_id = quote(config.get("appliance_id"))
+        self._temp = 25
         self._hass = hass
         self._name = DOMAIN
         self._json = {}
@@ -85,6 +89,15 @@ class EoliaClimate(ClimateEntity):
     @property
     def max_temp(self):
         return 30
+
+    @property
+    def target_temperature(self):
+        return self._temp
+
+    @property
+    def target_temperature_step(self):
+        """Return the supported step of target temperature."""
+        return 0.5
 
     @property
     def hvac_mode(self):
@@ -133,7 +146,7 @@ class EoliaClimate(ClimateEntity):
 
     @property
     def current_temperature(self):
-        return self._json.get("temperature")
+        return self._json.get("inside_temp")
 
     @property
     def supported_features(self):
@@ -191,6 +204,10 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def _set_put(self):
+        if self._json["temperature"] < self.min_temp:
+            self._json["temperature"] = self.min_temp
+        if self._json["temperature"] > self.max_temp:
+            self._json["temperature"] = self.max_temp
         self._json["temperature"] = str(self._json["temperature"])
         self._set_json(
             self._put(
@@ -223,6 +240,8 @@ class EoliaClimate(ClimateEntity):
     def _set_json(self, json):
         if "operation_token" in json:
             self._operation_token = json.get("operation_token")
+        if json.get("temperature") != 0:
+            self._temp = json.get("temperature")
         self._json = json
 
     def _post(self, url, data) -> Response:
