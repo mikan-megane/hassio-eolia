@@ -171,7 +171,7 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def set_preset_mode(self, preset_mode):
-        if preset_mode == HVAC_MODE_OFF:
+        if preset_mode == HVAC_MODE_OFF or preset_mode == "オフ":
             self._json["operation_status"] = False
         else:
             self._json["operation_status"] = True
