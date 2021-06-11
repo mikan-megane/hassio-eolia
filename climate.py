@@ -164,6 +164,7 @@ class EoliaClimate(ClimateEntity):
             "inside_humidity": self._json.get("inside_humidity"),
             "inside_temp": self._json.get("inside_temp"),
             "outside_temp": None if outside_temp == 999 else outside_temp,
+            "timer_value": self._json.get("timer_value"),
             "_json": self._json,
         }
 
@@ -200,7 +201,7 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def set_temperature(self, **kwargs):
-        _LOGGER.debug(kwargs)
+        self._temp = kwargs.get("temperature")
         self._set_put()
 
     def _set_put(self):
