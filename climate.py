@@ -31,6 +31,7 @@ _PRESET_MODES = {
     "Cooling": "冷房",
     "Auto": "オート",
     "Dehumidifying": "ドライ",
+    "CoolDehumidifying": "冷房除湿",
     "Nanoe": "ファンのみ",
     "ClothesDryer": "衣類乾燥",
     "Cleaning": "おそうじ",
@@ -206,7 +207,7 @@ class EoliaClimate(ClimateEntity):
 
     def _set_put(self):
         self._json["temperature"] = "0"
-        if self._json["operation_mode"] in ["Heating","Cooling","Auto"]:
+        if self._json["operation_mode"] in ["Heating","Cooling","Auto","CoolDehumidifying"]:
             if self._temp < self.min_temp:
                 self._temp = self.min_temp
             if self._temp > self.max_temp:
