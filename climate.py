@@ -17,25 +17,27 @@ DOMAIN = "eolia"
 SCAN_INTERVAL = timedelta(minutes=1)
 
 _HVAC_MODES = {
-    "Stop": HVAC_MODE_OFF,
-    "Heating": HVAC_MODE_HEAT,
-    "Cooling": HVAC_MODE_COOL,
     "Auto": HVAC_MODE_AUTO,
-    "Dehumidifying": HVAC_MODE_DRY,
     "Nanoe": HVAC_MODE_FAN_ONLY,
+    "Cooling": HVAC_MODE_COOL,
+    "Dehumidifying": HVAC_MODE_DRY,
+    "Heating": HVAC_MODE_HEAT,
+    "Stop": HVAC_MODE_OFF,
 }
 
 _PRESET_MODES = {
-    "Stop": "オフ",
-    "Heating": "暖房",
-    "Cooling": "冷房",
     "Auto": "オート",
+    "Nanoe": "ナノイー送風",
+    "Blast": "送風",
+    "Cooling": "冷房",
     "Dehumidifying": "ドライ",
+    "Heating": "暖房",
     "CoolDehumidifying": "冷房除湿",
-    "Nanoe": "ファンのみ",
     "ClothesDryer": "衣類乾燥",
+    "KeepMode": "ダブル温度設定",
     "Cleaning": "おそうじ",
     "NanoexCleaning": "おでかけクリーン",
+    "Stop": "オフ",
 }
 
 _FAN_MODES = {0: "自動", 2: "1", 3: "2", 4: "3", 5: "4"}
@@ -208,9 +210,9 @@ class EoliaClimate(ClimateEntity):
     def _set_put(self):
         self._json["temperature"] = "0"
         if self._json["operation_mode"] in ["Heating","Cooling","Auto","CoolDehumidifying"]:
-            if self._temp < self.min_temp:
+            if float(self._temp) < self.min_temp:
                 self._temp = self.min_temp
-            if self._temp > self.max_temp:
+            if float(self._temp) > self.max_temp:
                 self._temp = self.max_temp
             self._json["temperature"] = str(self._temp)
         self._set_json(
