@@ -1,0 +1,17 @@
+{
+  "domain": "eolia",
+  "name": "eolia",
+  "codeowners": [
+    "@mikan-megane"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/mikan-megane/hassio-eolia",
+  "issue_tracker": "https://github.com/mikan-megane/hassio-eolia",
+  "version": "0.1.0",
+  "homekit": {},
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": []
+}
