@@ -1,14 +1,18 @@
 """Sensor for the Eolia Network."""
+from datetime import datetime, timedelta, timezone
 import json
-import requests
 import logging
-from datetime import datetime, timezone, timedelta
 from urllib.parse import quote
 
+import requests
 from requests.models import Response
-from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate.const import *
-from homeassistant.const import TEMP_CELSIUS
+
+from homeassistant.components.climate import (
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACMode,
+)
+from homeassistant.const import UnitOfTemperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,12 +21,12 @@ DOMAIN = "eolia"
 SCAN_INTERVAL = timedelta(minutes=1)
 
 _HVAC_MODES = {
-    "Auto": HVAC_MODE_AUTO,
-    "Nanoe": HVAC_MODE_FAN_ONLY,
-    "Cooling": HVAC_MODE_COOL,
-    "Dehumidifying": HVAC_MODE_DRY,
-    "Heating": HVAC_MODE_HEAT,
-    "Stop": HVAC_MODE_OFF,
+    "Auto": HVACMode.AUTO,
+    "Nanoe": HVACMode.FAN_ONLY,
+    "Cooling": HVACMode.COOL,
+    "Dehumidifying": HVACMode.DRY,
+    "Heating": HVACMode.HEAT,
+    "Stop": HVACMode.OFF,
 }
 
 _PRESET_MODES = {
@@ -105,7 +109,7 @@ class EoliaClimate(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return the state of the sensor."""
-        return _HVAC_MODES.get(self._json.get("operation_mode"), HVAC_MODE_OFF)
+        return _HVAC_MODES.get(self._json.get("operation_mode"), HVACMode.OFF)
 
     @property
     def hvac_modes(self):
@@ -145,7 +149,7 @@ class EoliaClimate(ClimateEntity):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def current_temperature(self):
@@ -154,10 +158,10 @@ class EoliaClimate(ClimateEntity):
     @property
     def supported_features(self):
         return (
-            SUPPORT_TARGET_TEMPERATURE
-            | SUPPORT_PRESET_MODE
-            | SUPPORT_FAN_MODE
-            | SUPPORT_SWING_MODE
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.PRESET_MODE
+            | ClimateEntityFeature.FAN_MODE
+            | ClimateEntityFeature.SWING_MODE
         )
 
     @property
@@ -180,7 +184,7 @@ class EoliaClimate(ClimateEntity):
         )
 
     def set_hvac_mode(self, hvac_mode):
-        if hvac_mode == HVAC_MODE_OFF:
+        if hvac_mode == HVACMode.OFF:
             self._json["operation_status"] = False
         else:
             self._json["operation_status"] = True
@@ -188,7 +192,7 @@ class EoliaClimate(ClimateEntity):
         self._set_put()
 
     def set_preset_mode(self, preset_mode):
-        if preset_mode == HVAC_MODE_OFF or preset_mode == "オフ":
+        if preset_mode == HVACMode.OFF or preset_mode == "オフ":
             self._json["operation_status"] = False
         else:
             self._json["operation_status"] = True
@@ -209,7 +213,12 @@ class EoliaClimate(ClimateEntity):
 
     def _set_put(self):
         self._json["temperature"] = "0"
-        if self._json["operation_mode"] in ["Heating","Cooling","Auto","CoolDehumidifying"]:
+        if self._json["operation_mode"] in [
+            "Heating",
+            "Cooling",
+            "Auto",
+            "CoolDehumidifying",
+        ]:
             if float(self._temp) < self.min_temp:
                 self._temp = self.min_temp
             if float(self._temp) > self.max_temp:
